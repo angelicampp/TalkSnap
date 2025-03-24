@@ -5,7 +5,8 @@ import upload from '../middlewares/upload.middleware.js'
 import convertVideotoMp3 from '../utils/convertToAudio.js';
 import convertToScript from '../utils/convertToScript.js';
 import { summarize } from '../utils/deepseek.js';
-
+import { connectToDatabase } from '../utils/Mongodb.js';
+import { saveHistory } from '../utils/UploadHistory.js';
 const router = Router()
 
 router.post('/', upload.single('file'), async (req, res) => {
@@ -31,8 +32,31 @@ router.post('/', upload.single('file'), async (req, res) => {
   res.write("Resumiendo transcripción/n")
   const summary = await summarize(req.body.lang, transcript)
   res.write(summary + '/n')
-
+  // Guardar en la base de datos
+  const transcriptionData = {
+    Titulo: req.file.filename,
+    Resumen:summary,
+    Idioma: req.body.lang,
+    Fecha: new Date().toISOString()
+    };
+  const save=saveHistory(transcriptionData)
+  res.write(save.message + '/n')
   res.end()
 });
 
+// Obtener todas las transcripciones
+router.get('/transcripciones', async (req, res) => {
+  try {
+    // Conectar a la base de datos
+    const { db } = await connectToDatabase();
+    const collection = db.collection('History');
+
+    // Obtener todos los documentos
+    const transcripciones = await collection.find({}).toArray();
+
+    res.status(200).json({ data: transcripciones });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener las transcripciones' });
+  }
+});
 export default router
