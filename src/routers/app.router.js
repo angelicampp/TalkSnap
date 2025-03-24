@@ -1,9 +1,13 @@
 import { Router } from 'express'
+import path from 'path'
+
 import upload from '../middlewares/upload.middleware.js'
+import convertVideotoMp3 from '../utils/convertToAudio.js';
+import convertToScript from '../utils/convertToScript.js';
 
 const router = Router()
 
-router.post('/', upload.single('file'), (req, res) => {
+router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Archivo no válido. Solo se aceptan .mp3 y .mp4' });
   }
@@ -13,8 +17,16 @@ router.post('/', upload.single('file'), (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders(); // Enviar los encabezados inmediatamente
 
-  res.write("Iniciando procesamiento")
-  console.log(req.file.filename)
+  let mp3File = req.file
+
+  const ext = path.extname(req.file.filename)
+  if (ext === '.mp4' || ext === '.avi' || ext === '.mov') {
+    res.write("Convirtiendo archivo a .mp3")
+    mp3File = convertVideotoMp3(req.file)
+  }
+
+  const transcript = await convertToScript(mp3File, req.body.lang)
+  console.log(transcript)
 
   res.write("Transcripcion")
   res.end()
