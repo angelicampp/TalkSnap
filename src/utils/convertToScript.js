@@ -1,5 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg';
 import speech from '@google-cloud/speech';
+import fs from 'fs'
+
 const client = new speech.SpeechClient();
 
 function getSampleRate(filePath) {
@@ -8,16 +10,22 @@ function getSampleRate(filePath) {
       if (err) {
         return reject(err);
       }
+
       const sampleRate = metadata.streams[0].sample_rate; // Extrae la tasa de muestreo
       resolve(parseInt(sampleRate, 10));
     });
   });
 }
 
-async function convertToScript(file, lang) {
+function fileToBase64(filePath) {
+  const fileBuffer = fs.readFileSync(filePath); // Read file as buffer
+  return fileBuffer.toString('base64'); // Convert buffer to Base64 string
+}
+
+async function convertToScript(filePath, lang) {
   // The audio file's encoding, sample rate in hertz, and BCP-47 language code
   const audio = {
-    content: file.toString('base64')
+    content: fileToBase64(filePath),
   };
 
   let langCode = ''
@@ -27,7 +35,7 @@ async function convertToScript(file, lang) {
 
   const config = {
     encoding: 'mp3',
-    sampleRateHertz: await getSampleRate(file.path),
+    sampleRateHertz: await getSampleRate(filePath),
     languageCode: langCode
   };
 
